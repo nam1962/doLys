@@ -1,0 +1,15 @@
+319372 uBlock Origin : un bloqueur de publicités léger et efficace.
+6623 BetterPrivacy : pour supprimer ou gérer les cookies.
+9825 FastestFox : pour optimiser la navigation.
+722 NoScript : un bloqueur de javascript.
+210846 Roomy Bookmarks Toolbar : pour gérer la barre des marques-pages.
+1122 Tab Mix Plus : gestion des onglets.
+13878 Vacuum Places Improved : pour maintenir les bases de données propres.
+#
+# 319372 /file/319372/ublock_origin-0.9.8.2-an+sm+fx.xpi
+# 6623 /latest/6623/addon-6623-latest.xpi
+# 9825 /latest/9825/addon-9825-latest.xpi
+# 722 /latest/722/addon-722-latest.xpi
+# 210846 /latest/210846/addon-210846-latest.xpi
+# 1122 /latest/1122/addon-1122-latest.xpi
+# 13878 /latest/13878/addon-13878-latest.xpi
