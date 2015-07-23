@@ -20,11 +20,11 @@
 # * me payer une bière en retour. nany
 # * ----------------------------------------------------------------------------
 # */
-# version 1.0
+# version 1.1
 
 ## VARIABLES ##
 NAME="nam1962-xubuntu-brutal"
-VERSION="1.0"
+VERSION="1.1"
 help=1
 full=1
 if [[ -f /var/log/installer/media-info ]]; then
