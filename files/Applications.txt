@@ -1,0 +1,40 @@
+1 gedit : l’éditeur de texte le plus répandu et utilisé dans la majorité des tutos.
+2 geany : un éditeur de texte très apprécié des programmeurs.
+3 gdebi : pour installer des .deb sans utiliser la logithèque.
+4 gufw : pour avoir l’interface graphique du pare-feu.
+5 clamav : un antivirus, totalement inutile sauf si vous ne souhaitez pas infester vos correspondants qui sont encore sous Windows.
+6 bleachbit : un utilitaire de nettoyage à manipuler toutefois avec la plus grande précaution.
+7 libreoffice : la suite bureautique libre qui n’a pas à rougir devant Microsoft Office.
+8 qupzilla : un navigateur web alternatif pratique en cas de problème avec votre navigateur principal.
+9 numlockx : pour pouvoir activer le pavé numérique si vous en avez un.
+10 xscreensaver : si vous voulez avoir des écrans de veille (devenu inutiles sur les écrans modernes).
+11 tlp : pour la gestion de l’énergie, indispensable sur les portables, peut être utile mais sans plus sur les ordinateur de bureau (gestion des disques durs).
+12 archivage : tout une suite d’utilitaires pour gérer les différents formats de fichiers compressés.
+13 codecs-audio-vidéos : différents codecs pour pouvoir lire les musiques et les vidéos.
+14 qbittorrent : un logiciel de téléchargement en « peer to peer ».
+15 shotwell : pour gérer vos photos.
+16 fotowall : pour créer des pathworks de photos.
+17 rhythmbox : pour gérer vos pods et votre bibliothèque musicale.
+18 openshot : pour éditer vos vidéos.
+19 handbrake : pour transcoder vos vidéos.
+20 filezilla : un client FTP.
+21 pinta : un équivalent de paint si Gimp vous fait trop peur.
+22 krita : un logiciel de traitement d’images.
+23 kazam : pour créer une capture dynamique de votre bureau.
+24 skype : le logiciel de visioconférence bien connu et malheureusement en position de quasi monopole.
+25 tox : une alternative open source et sécurisée à Skype (à partir de 14.04).
+26 glabels : pour créer vos cartes de visite (et imprimer sur la plupart des kits du commerce).
+27 deja-dup : un outil pour effectuer des sauvegardes.
+28 ubuntu-tweak : une boîte à outils pour régler votre système, à utiliser toutefois avec précautions.
+29 brasero : pour graver vos CD et DVD.
+30 synapse ou kupfer : lanceur d’applications.
+31 Des thèmes sélectionnés par nam1962.
+32 qt4-qtconfig : pour pouvoir relooker les applications qt à partir de Xubuntu 15.04.
+33 docky : un dock simple à paramétrer.
+34 gconf-editor : pour régler docky afin de pouvoir éteindre par celui-ci.
+35 Ajouter des sons systèmes.
+36 screenlets : pour ajouter des gadgets sur le bureau.
+37 xfce4-mixer : pour avoir un réglage de son tout simple dans le tableau de bord.
+38 xbacklight : pour régler la luminosité à la souris.
+39 xfce-theme-manager : pour gérer le thème de votre xubuntu.
+# Ne pas supprimer cette dernière ligne !
