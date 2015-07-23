@@ -1409,7 +1409,7 @@ done
 
 for a in ${addfa[@]}
 do
-  ao=$(grep "^$a " $ADDS | cut -d':' -f1 | sed "s/$a //;s/ //;s/ / /g")
+  ao=$(grep "^$a " $ADDS | cut -d':' -f1 | sed "s/$a //;s/ //;s/ / /g")
   if [[ ! $(grep -iR name $FX_PATH | grep -i "$ao") ]]; then
     fxadds+=( $a )
   fi
