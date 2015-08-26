@@ -1,0 +1,1472 @@
+#!/bin/bash
+# encoding utf8
+# nam1962-xubuntu-brutal.sh by nany
+# for french ubuntu and differents flavours
+#
+#  ----------------------------------------------------------------------------
+#  "THE BEER-WARE LICENSE" (Revision 42):
+#  <nany@forum.ubuntu-fr.org> wrote this file. As long as you retain this
+#  notice you can do whatever you want with this stuff. If we meet some day,
+#  and you think this stuff is worth it, you can buy me a beer in return. nany
+#  ----------------------------------------------------------------------------
+# 
+# comments and dialog texts in french so license in french too :þ
+#
+#  ----------------------------------------------------------------------------
+#  "LICENCE BEERWARE" (Révision 42) :
+#  <nany@forum.ubuntu-fr.org> a créé ce fichier. Tant que vous conservez cet
+#  avertissement, vous pouvez faire ce que vous voulez de ce truc. Si on se
+#  rencontre un jour et que vous pensez que ce truc vaut le coup, vous pouvez
+#  me payer une bière en retour. nany
+#  ----------------------------------------------------------------------------
+#
+
+## FUNCTIONS ##
+usage ()
+{
+echo -e ""
+echo -e ""
+echo -e "\\033[1;41m""Usage :""\\033[0;39m"" ""\\033[1;39m"\
+"sudo -E""\\033[0;39m"" $0 ""\\033[0;36m""[-F | --full | -h | --help]"
+echo -e "\\033[0;39m"
+echo -e "\tScript pour automatiser les installations du tuto de nam1962."
+echo -e ""
+echo -e "\\033[1;46m""Options :""\\033[0;39m"
+echo -e "\\033[0;36m""\t  -F  --full""\\033[0;39m"\
+"\tInstallation complète sans demande hormis"
+echo -e "\t\t\tl’acceptation de la licence Microsoft si besoin"
+echo -e "\t\t\tet le choix du lanceur d’applications."
+echo -e ""
+echo -e "\\033[0;36m""\t  -h  --help""\\033[0;39m""\tAffichage de cette aide."
+echo -e ""
+echo -e ""
+}
+
+date_support ()
+{
+if [[ ${DISTRODES: -3:3} == "LTS" ]]; then
+  TS="5 year"
+else
+  TS="9 month"
+fi
+date -d "$DISTRODATE $TS" +%s
+}
+
+source ()
+{
+if [[ ${DISTROVER:0:2} -ge 15 ]]; then
+  sl=$(echo "$1" | cut -d':' -f2 | sed 's:/:-ubuntu-:')
+else
+  sl=$(echo "$1" | cut -d':' -f2 | sed 's:/:-:')
+fi
+sl+=$(echo "-"$(lsb_release -sc)".list")
+echo "$sl"
+}
+
+is_flavour_available ()
+{
+case ${MEDIA_INFO,,} in
+  ubuntu|*ubuntu|ubuntu-*)
+    flavour=${MEDIA_INFO}
+    ;;
+  mythbuntu)
+    echo "$MEDIA_INFO n’est pas pris en charge par ce script."
+    exit 3
+    ;;
+  custom)
+    echo "Votre installation ne semble pas avoir été effectuée"
+    echo "à partir d’une image officielle de releases.ubuntu.com."
+    exit 3
+    ;;
+  nomedia)
+    echo "Votre installation semble avoir été effectuée"
+    echo "à partir d’une image d’installation mini. Le script ne peut"
+    echo "pas déterminer la variante."
+    exit 3
+    ;;
+  *)
+    echo "Votre installation ne semble pas avoir été effectuée"
+    echo "à partir d’une image officielle de releases.ubuntu.com."
+    exit 3
+    ;;
+esac
+}
+
+is_version_available ()
+{
+if [[ $(($(date +%s)-$(date_support))) -ge 0 ]]; then
+  echo "Votre version ($DISTROVER) n’est plus maintenue."
+  echo "Veuillez consulter les pages suivantes pour choisir une version."
+  echo "doc.ubuntu-fr.org/old-releases"
+  echo "doc.ubuntu-fr.org/versions"
+  echo "doc.ubuntu-fr.org/lts"
+  exit 4
+fi
+}
+
+sudoers_nopasswd ()
+{
+return
+}
+
+install_dialog ()
+{
+# si nécessaire, installation pour l’affichage des boîtes de dialogue
+if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+  if [[ $KDIAL -ne 0 ]]; then
+    apt-get install -y kde-baseapps-bin > /dev/null
+  fi
+elif [[ $ZEN -ne 0 ]]; then
+  apt-get install -y zenity > /dev/null
+fi
+}
+
+infos ()
+{
+if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+  text="Ce script permet d’automatiser sur une installation fraîche "
+  text+="les installations qui sont proposées dans le tuto de nam1962.\n"
+  text+="Vous pouvez le consulter dans votre navigateur à cette adresse :\n"
+  text+="dolys.fr/forums/topic/tuto-mon-optimisation-personnalisation-"
+  text+="xubuntu-et-autres-variantes/\n"
+  text+="Si vous utilisez ce script sur une installation modifiée, il est "
+  text+="possible que certains conflits rendent votre installation instable.\n"
+  text+="Il est préférable de prendre connaissance du tuto  pour comprendre ce "
+  text+="que ce script va faire avant de cliquer sur Continuer."
+  sudo -E -u "$SUDO_USER" \
+  kdialog \
+  --caption "Informations" \
+  --warningcontinuecancel \
+  "$text" \
+  > /dev/null 2>&1
+else
+  text="<b>Bonjour,</b>\n\n"
+  text+="  ce script permet d’automatiser sur une installation fraîche "
+  text+="les installations qui sont proposées dans le tuto de nam1962\n"
+  text+="  que vous pouvez consulter dans votre navigateur "
+  text+="<a href=\"http://dolys.fr/forums/topic/tuto-mon-optimisation"
+  text+="-personnalisation-xubuntu-et-autres-variantes/\">à cette adresse</a>."
+  text+="\n  Si vous utilisez ce script sur une installation modifiée, il est "
+  text+="possible que certains conflits rendent votre installation instable.\n"
+  text+="  Il est préférable de prendre connaissance du tuto "
+  text+="pour comprendre ce que ce script va faire."
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --info \
+  --title="Informations" \
+  --width=400 \
+  --height=160 \
+  --no-wrap \
+  --text="$text" \
+  --ok-label="Suivant" \
+  > /dev/null 2>&1
+  text="En cliquant sur Continuer vous confirmez "
+  text+="avoir pris connaissance du tuto."
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --question \
+  --title="Continuer ?" \
+  --text="$text" \
+  --no-wrap \
+  --ok-label="Continuer" \
+  --cancel-label="Abandonner" \
+  > /dev/null 2>&1
+fi
+if [[ $? -ne 0 ]]; then
+  exit 2
+fi
+}
+
+warning ()
+{
+if [[ $full -eq 0 ]]; then
+  case "${flavour,,}" in
+    xubuntu|lubuntu)
+      text="Vous avez choisi l’option full. Cette option installe "
+      text+="automatiquement la plupart des logiciels proposés dans le tuto "
+      text+="de nam1962.\nOr votre variante est ${flavour}. "
+      text+="Cette variante est réputée légère et adaptée aux machines "
+      text+="vieillissantes.\nSi votre machine manque de puissance, il vaut "
+      text+="mieux choisir parmi la liste des logiciels,\nceux que vous "
+      text+="souhaitez installer en tâchant d’éviter les applications un peu "
+      text+="gourmandes (comme LibreOffice par exemple).\n"
+      text+="Si, comme nam1962, vous avez choisi votre interface avant tout "
+      text+="parce qu’elle vous plaît\net que votre machine est suffisamment "
+      text+="puissante, alors vous pouvez continuer avec l’option full."
+      sudo -E -u "$SUDO_USER" \
+      zenity \
+      --question \
+      --window-icon=warning \
+      --title="Avertissement" \
+      --text="$text" \
+      --no-wrap \
+      --ok-label="Continuer avec l’option full" \
+      --cancel-label="Choisir parmi la liste" \
+      > /dev/null 2>&1
+      full=$?
+      ;;
+    *)
+      ;;
+  esac
+else
+  case "${flavour,,}" in
+    xubuntu|lubuntu)
+      text="Votre variante est ${flavour}. "
+      text+="Cette variante est réputée légère et adaptée aux machines "
+      text+="vieillissantes.\nSi votre machine manque de puissance, il vaut "
+      text+="mieux choisir parmi la liste des logiciels,\nceux que vous "
+      text+="souhaitez installer en tâchant d’éviter les applications un peu "
+      text+="gourmandes\n(comme LibreOffice par exemple)."
+      sudo -E -u "$SUDO_USER" \
+      zenity \
+      --warning \
+      --title="Avertissement" \
+      --text="$text" \
+      --no-wrap \
+      > /dev/null 2>&1
+      ;;
+    *)
+      ;;
+  esac
+fi
+}
+
+mseula ()
+{
+if [[ $MSCORE -ne 0 ]]; then
+  echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula \
+  select true | debconf-set-selections
+  if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+    w=510
+    h=$(($SCRHEIGHT-150))
+    x=$(( ($SCRWIDTH-${w})/2 ))
+    y=$(( ($SCRHEIGHT-${h})/2 ))
+    sudo -E -u "$SUDO_USER" \
+    kdialog \
+    --caption "Licence" \
+    --geometry ${w}x${h}+${x}+${y} \
+    --textbox "$EULA" \
+    > /dev/null 2>&1
+    sudo -E -u "$SUDO_USER" \
+    kdialog \
+    --caption "Licence" \
+    --warningyesno \
+    "Acceptez-vous les termes de la licence ?" \
+    > /dev/null 2>&1
+  else
+    sudo -E -u "$SUDO_USER" \
+    zenity \
+    --text-info \
+    --title="Licence" \
+    --filename="$EULA" \
+    --width=650 \
+    --height=$(($SCRHEIGHT-150)) \
+    --checkbox="Oui, je souhaite installer les polices." \
+    > /dev/null 2>&1
+  fi
+  if [[ $? -eq 0 ]]; then
+    mscorefonts=0
+    addpkg+=( ttf-mscorefonts-installer )
+  else
+    mscorefonts=1
+  fi
+fi
+}
+
+sources_list ()
+{
+sed -i '/^# deb http/ s//deb http/g' "$SRC" > /dev/null
+sed -i '/^# deb-src/ s//deb-src/g' "$SRC" > /dev/null
+sed -i '/proposed/d' "$SRC" > /dev/null
+}
+
+microcode ()
+{
+cpu=$(grep vendor_id /proc/cpuinfo | cut -d' ' -f2 | uniq)
+if [[  $cpu == "GenuineIntel" ]]; then
+  addpkg+=( intel-microcode )
+fi
+#if [[  $(uname -m) == "x86_64" ]]; then
+#  addpkg+=( amd64-microcode )
+#fi
+}
+
+etc_hosts ()
+{
+sed -i "s/127.0.0.1\tlocalhost/127.0.0.1\t$HOSTNAME localhost/" /etc/hosts \
+> /dev/null
+}
+
+sup_nany ()
+{
+# suppléments nany ;)
+if [[ ! -f /etc/hosts.tmp ]]; then
+  cp /etc/hosts /etc/hosts.tmp
+fi
+cat << 'EOF' > "$HOSTS"
+#!/bin/bash
+wget --directory-prefix=/tmp http://winhelp2002.mvps.org/hosts.txt || exit
+cp /etc/hosts.tmp /etc/hosts
+sed "1,25d" /tmp/hosts.txt >> /etc/hosts
+rm /tmp/hosts.txt
+exit 0
+EOF
+chmod +x "$HOSTS"
+
+cat << 'EOF' > "$KLEANER"
+#!/bin/bash
+
+apt-get autoremove --purge -y
+if [[ $(dpkg -l | grep ^rc) ]]; then
+  dpkg -P $(dpkg -l | grep ^rc | tr -s " " | cut -d" " -f2)
+fi
+KEEP=2
+TAIL=$((($KEEP-1)*2))
+USED=$(uname -r | cut -d- -f1,2)
+KERNELS=$(dpkg -l | egrep "linux-(headers|image)-[0-9]" | cut -d" " -f3)
+UNUSED=$(echo "$KERNELS" | grep -v "$USED" | sort -t- -k3,4 )
+KERNELS_TO_PURGE=$(echo "$UNUSED" | cut -d- -f-4 | uniq | head -n-$TAIL)
+H_UNUSED=$(echo "$UNUSED" | grep headers | head -n-$TAIL)
+SRC_TO_REMOVE=$(echo "$H_UNUSED" | head -2 | sed "s:linux:/usr/src/linux:g")
+PERCENT_ROOT=$(df -i / | grep dev | tr -s " " | cut -d" " -f5 | tr -d "%")
+[[ $PERCENT_ROOT -ge 98 ]] && rm -rf $SRC_TO_REMOVE
+apt-get purge -y $KERNELS_TO_PURGE
+
+exit 0
+EOF
+chmod +x "$KLEANER"
+}
+
+fr_language ()
+{
+# francisation
+# on prépare simplement un lancement de la prise en charge des langues
+# (qui fera tout ce qu’il faut) au prochain démarrage de la session
+echo 'LANG="fr_FR.UTF-8"' > /etc/default/locale
+if [[ "x${flavour,,}" != "xkubuntu" ]]; then
+  if [[ ! -d "$AS" ]]; then
+    mkdir "$AS"
+    chown "$SUDO_USER":"$SUDO_USER" "$AS"
+  fi
+  cat <<- EOF > "$ROD"
+	[Desktop Entry]
+	Type=Application
+	Name=RunOnce
+	Exec="$RO"
+	EOF
+  chown "$SUDO_USER":"$SUDO_USER" "$ROD"
+  if [[ "${flavour,,}" == "ubuntu-gnome" ]]; then
+    cat <<- 'EOF' > "$RO"
+	#!/bin/bash
+	gnome-control-center region &
+	rm -f ~/.config/autostart/RunOnce.desktop
+	rm -f $0
+	exit 0
+	EOF
+  else
+    cat <<- 'EOF' > "$RO"
+	#!/bin/bash
+	gnome-language-selector &
+	rm -f ~/.config/autostart/RunOnce.desktop
+	rm -f $0
+	exit 0
+	EOF
+  fi
+  chown "$SUDO_USER":"$SUDO_USER" "$RO"
+  chmod +x "$RO"
+fi
+}
+
+swappiness ()
+{
+swap=$(cat /etc/fstab | grep swap | grep -v installation | cut -d' ' -f1)
+if [[ "x$swap" != "x" ]]; then
+  if [[ "$DISTROVER" == "12.04" ]]; then
+    conf="/etc/sysctl.conf"
+  else
+    conf="/etc/sysctl.d/99-swappiness.conf"
+  fi
+  if [[ $(grep "swappiness=" "$conf") ]] && \
+     [[ $(grep "vm.vfs_cache_pressure=" "$conf") ]]; then
+    return
+  fi
+  if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+    dbusRef=$(sudo -E -u "$SUDO_USER" \
+    kdialog \
+    --title "Optimisation de la swap" \
+    --geometry 400x75 \
+    --progressbar " " \
+    3)
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef \
+    setLabelText "vm.swappiness=5" > /dev/null
+    if [[ "$DISTROVER" == "12.04" ]]; then
+      if [[ ! $(grep "swappiness=" "$conf") ]]; then
+        echo "vm.swappiness=5" >> "$conf"
+      fi
+    else
+      echo "vm.swappiness=5" > "$conf"
+    fi
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value 1 >/dev/nul
+    sleep 1
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef \
+    setLabelText "vm.vfs_cache_pressure=50" > /dev/null
+    if [[ ! $(grep "vm.vfs_cache_pressure=" "$conf") ]]; then
+      echo "vm.vfs_cache_pressure=50" >> "$conf" 
+    fi
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value 2 >/dev/nul
+    sleep 1
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef setLabelText \
+    "sysctl -p $conf" > /dev/null
+    sysctl -p "$conf" > /dev/null
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value 3 >/dev/nul
+    sleep 1
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef close > /dev/null
+  else
+    (
+      echo "# vm.swappiness=5"
+      if [[ "$DISTROVER" == "12.04" ]]; then
+        if [[ ! $(grep "swappiness=" "$conf") ]]; then
+          echo "vm.swappiness=5" >> "$conf"
+        fi
+      else
+        echo "vm.swappiness=5" > "$conf"
+      fi
+      echo "33"
+      sleep 1
+      echo "# vm.vfs_cache_pressure=50"
+      if [[ ! $(grep "vm.vfs_cache_pressure=" "$conf") ]]; then
+        echo "vm.vfs_cache_pressure=50" >> "$conf"
+      fi
+      echo "66"
+      sleep 1
+      echo "# sysctl -p $conf"
+      sysctl -p "$conf"
+      echo "99"
+      sleep 1
+      echo "100"
+    ) |
+    sudo -E -u "$SUDO_USER" \
+    zenity \
+    --progress \
+    --title="Optimisation de la swap" \
+    --width=400 \
+    --text="" \
+    --no-cancel \
+    --auto-close \
+    > /dev/null 2>&1
+  fi
+fi
+}
+
+default_pkg ()
+{
+# paquets installés par défaut sans demande
+addpkg+=( $(grep -A 1 "^\[${flavour,,}\]$" "$U_DEFAULT" | tail -1) )
+}
+
+get_choice ()
+{
+# traitement full ou libre choix
+# full
+if [[ $full -eq 0 ]]; then
+  choice=( $(grep -A 2 "^\[${flavour,,}\]$" "$U_DEFAULT" | tail -1) )
+# libre choix (propositions différentes selon les variantes)
+else
+  clear
+  echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+  echo -e ""
+  echo -e "Analyse de votre système…"
+  list=( $(grep -A 3 "^\[${flavour,,}\]$" "$U_DEFAULT" | tail -1) )
+  text=""
+  for n in ${list[@]}
+  do
+    line=""
+    deb=$(grep -A 3 "^\[$n\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+    deb=$(echo "$deb" | sed 's/choice(//;s/,/ /;s/)//')
+    name=$(grep -A 1 "^\[$n\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+    desc=$(grep -A 2 "^\[$n\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+    desc=$(echo "$desc" | sed 's/ / /g')
+    for d in $deb
+    do
+      if [[ "$d" == "geany-plugin*" ]]; then
+        break
+      fi
+      if [[ "$d" == "numlockx" && ${DISTROVER:0:2} -ge 15 ]]; then
+        break
+      fi
+      if [[ $(echo "$d" | grep "^\[.*\]") ]]; then
+        debver=$(echo "$d" | sed 's/^\[\([0-9][0-9].*\)\].*$/\1/')
+        d=$(echo "$d" | sed 's/^\[.*\]//')
+        if [[ "${debver:2:1}" == "+" ]]; then
+          if [[ ${DISTROVER:0:2} -ge ${debver:0:2} ]]; then
+            if [[ ! $(dpkg -l | sed 's/:.*/ /' | grep "$d " | grep "^ii ") ]]
+            then
+              line="$n $name : $desc"
+              break
+            fi
+          fi
+        fi
+      elif [[ ! $(dpkg -l | sed 's/:.*/ /' | grep "$d " | grep "^ii ") ]]; then
+        line="$n $name : $desc"
+        break
+      fi
+    done
+    if [[ "x$line" != "x" ]]; then
+      if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+        text="$text $line off"
+      else
+        text="$text FALSE $line"
+      fi
+    fi
+  done
+  clear
+  echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+  if [[ "x$text" != "x" ]]; then
+    if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+      w=805
+      h=300
+      x=$(( ($SCRWIDTH-${w})/2 ))
+      y=$(( ($SCRHEIGHT-${h})/2 ))
+      choice=( $(sudo -E -u "$SUDO_USER" \
+      kdialog --geometry ${w}x${h}+${x}+${y}\
+      --caption "Choix d’installation" \
+      --separate-output \
+      --checklist "Choisissez les logiciels dans la liste ci dessous." \
+      $text \
+      2>&1) )
+    else
+      htext="Choisissez les logiciels dans la liste ci dessous."
+      choice=( $(sudo -E -u "$SUDO_USER" \
+      zenity --title="Choix d’installation" \
+      --text="$htext" \
+      --width=800 \
+      --height=600 \
+      --list \
+      --checklist \
+      --column "check" \
+      --column "number" \
+      --column "software" \
+      --hide-column=2 \
+      --separator=" " \
+      --print-column=2 \
+      --hide-header \
+      $text \
+      2>/dev/null) )
+    fi
+  fi
+fi
+}
+
+choice_analyse ()
+{
+# traitement des choix
+if [[ $full -ne 0 ]]; then
+  if [[ $ge -eq 0 ]]; then
+    choice+=( 1 )
+  fi
+  if [[ $lo -eq 0 ]]; then
+    choice+=( 7 )
+  fi
+fi
+for c in ${choice[@]}
+do
+  deb=$(grep -A 3 "^\[$c\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+  deb=$(echo "$deb" | sed 's/^\[.*\]//')
+  for d in $deb
+  do
+    if [[ $(echo "$d" | grep "^choice(") ]]; then
+      debch=$(echo "$d" | sed 's/^choice(//;s/)//;s/,/ /')
+      cpt=0
+      for dbc in $debch
+      do
+        if [[ $cpt -eq 0 ]]; then
+          ltext="TRUE $dbc"
+        else
+          ltext="$ltext FALSE $dbc"
+        fi
+        ((cpt++))
+      done
+      desc=$(grep -A 2 "^\[$c\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+      dc=$(sudo -E -u "$SUDO_USER" \
+      zenity \
+      --title="${desc^}" \
+      --text="Choisissez votre ${desc}." \
+      --width=400 \
+      --height=150 \
+      --list \
+      --radiolist \
+      --column "check" \
+      --column "deb" \
+      --separator=" " \
+      --hide-header \
+      $ltext \
+      2>/dev/null)
+      if [[ "x$dc" != "x" ]]; then
+        addpkg+=( $dc )
+        pp=$(grep -A 1 "^\[$dc\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+        addppas+=( $pp )
+        p=$(grep -A 2 "^\[$dc\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+        addpurges+=( $p )
+      fi
+    else
+      addpkg+=( $d )
+    fi
+  done
+  pp=$(grep -A 4 "^\[$c\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+  if [[ "x$pp" != "x" ]]; then
+    addppas+=( $pp )
+  fi
+done
+for p in ${addpkg[@]}
+do
+  case $p in
+    gedit)
+      if [[ $leaf -eq 0 ]]; then
+        prevuninst+=( leafpad )
+      fi
+      ;;
+    gufw)
+      gufw=0
+      ;;
+    libreoffice)
+      if [[ $abi -eq 0 ]]; then
+        prevuninst+=( abiword )
+      fi
+      if [[ $gnum -eq 0 ]]; then
+        prevuninst+=( gnumeric )
+      fi
+      r=${PPADIR}$(source "ppa:libreoffice/ppa")
+      o='optional(ppa:libreoffice/ppa)'
+      q='ppa:libreoffice/ppa'
+      if [[ $full -eq 0 ]]; then
+        if  [[ ! -f "$r" ]]; then
+          addppas=( $echo ${addppas[@]/$o/$q} )
+          ppalo=0
+        fi
+      elif [[ ! -f "$r" ]]; then
+        title="Libreoffice"
+        text="Libreoffice n’a plus de secret pour vous ?\n"
+        text+="Souhaitez-vous installer son ppa pour avoir\n"
+        text+="ses dernières mises à jour ?"
+        if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+          sudo -E -u "$SUDO_USER" \
+          kdialog \
+          --caption "$title" \
+          --yesno \
+          "$text"
+        else
+          sudo -E -u "$SUDO_USER" \
+          zenity \
+          --question \
+          --title="$title" \
+          --text="$text" \
+          --ok-label="Oui" \
+          --cancel-label="Non" \
+          > /dev/null 2>&1
+        fi
+        if [[ $? -eq 0 ]]; then
+          addppas=( $echo ${addppas[@]/$o/$q} )
+          ppalo=0
+        else
+          addppas=( $echo ${addppas[@]/$o/} )
+          ppalo=1
+        fi
+      else
+        addppas=( $echo ${addppas[@]/$o/} )
+        ppalo=1
+      fi
+      ;;
+    numlockx)
+      nmtty="# Turn Numlock on for the TTYs:\n"
+      nmtty+="for tty in /dev/tty[1-6]; do\n"
+      nmtty+="  /usr/bin/setleds -D +num < \$tty\n"
+      nmtty+="done\n\nexit 0"
+      if [[ ! $(grep -i tty /etc/rc.local) ]]; then
+        sed -i "s|^exit 0.*$|${nmtty}|" /etc/rc.local
+      fi
+      if [[ "$DISTROVER" == "12.04" ]]; then
+        if [[ ! $(grep numlockx /etc/lightdm/lightdm.conf) ]]; then
+          echo "greeter-setup-script=/usr/bin/numlockx on" \
+          >> /etc/lightdm/lightdm.conf
+        fi
+      elif [[ ! $(grep -r numlockx /usr/share/lightdm/lightdm.conf.d/) ]]; then
+        echo -e "[SeatDefaults]\ngreeter-setup-script=/usr/bin/numlockx on" \
+        > /usr/share/lightdm/lightdm.conf.d/99-numlockx.conf
+      fi
+      ;;
+    tlp)
+      tlp=0
+      ;;
+    qtox)
+      tox=0
+      ;;
+    gnome-session-canberra|ubuntu-sounds|sox|xfconf|dconf-tools)
+      sounds=0
+      ;;
+  esac
+done
+}
+
+is_gimp ()
+{
+if [[ $gimp -eq 0 ]]; then
+  srclst=$(source 'ppa:otto-kesselgulasch/gimp')
+  r="${PPADIR}${srclst}"
+  if [[ $full -eq 0 ]]; then
+    if  [[ ! -f "$r" ]]; then
+      purges+=( $(dpkg -l | grep "^ii  gimp" | tr -s ' ' | cut -d' ' -f2) )
+      addppas+=( 'ppa:otto-kesselgulasch/gimp' )
+      pkg+=( gimp gimp-data-extras gvfs-backends )
+      pkg+=( gimp-help-en gimp-help-fr gmic gimp-gmic )
+    fi
+  elif  [[ ! -f "$r" ]]; then
+    title="Gimp"
+    text="Vous êtes expert en infographie et faites des prouesses avec gimp ?\n"
+    text+="Souhaitez-vous installer son ppa pour avoir\n"
+    text+="ses dernières mises à jour ?"
+    if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+      sudo -E -u "$SUDO_USER" \
+      kdialog \
+      --caption "$title" \
+      --yesno \
+      "$text"
+    else
+      sudo -E -u "$SUDO_USER" \
+      zenity \
+      --question \
+      --title="$title" \
+      --text="$text" \
+      --ok-label="Oui" \
+      --cancel-label="Non" \
+      > /dev/null 2>&1
+    fi
+    if [[ $? -eq 0 ]]; then
+      purges+=( $(dpkg -l | grep "^ii  gimp" | tr -s ' ' | cut -d' ' -f2) )
+      addppas+=( 'ppa:otto-kesselgulasch/gimp' )
+      pkg+=( gimp gimp-data-extras gvfs-backends )
+      pkg+=( gimp-help-en gimp-help-fr gmic gimp-gmic )
+    fi
+  fi
+fi
+}
+
+get_uninstall ()
+{
+# désinstallations éventuelles
+text="Sélectionnez ci dessous les logiciels\n"
+text+="que vous souhaitez désinstaller."
+if [[ ${#prevuninst[@]} -gt 0 ]]; then
+  if [[ $full -eq 0 ]]; then
+    addremove+=( ${prevuninst[@]} )
+  else
+    if [[ "x${flavour,,}" != "xkubuntu" ]]; then
+      clist=""
+      for p in ${prevuninst[@]}
+      do
+        clist+=" FALSE $p"
+      done
+      cuninst=( $(sudo -E -u "$SUDO_USER" \
+      zenity \
+      --title="Choix de désinstallation" \
+      --text="$text" \
+      --width=400 \
+      --height=210 \
+      --list \
+      --checklist \
+      --separator=" " \
+      --hide-header \
+      --column "Désinstaller" \
+      --column "Logiciels" \
+      $clist \
+      2>/dev/null) )
+    fi
+    addremove+=( ${cuninst[@]} )
+  fi
+fi
+}
+
+get_addons ()
+{
+# extensions firefox ou thunderbird
+if [[ "$1" == "palemoon-bin" ]]; then
+  return
+fi
+if [[ ! $(dpkg -l | grep "$1 " | grep ^ii) ]]; then
+  return
+fi
+list=$(grep -A 1 "\[${1}\]" "$ADDCONF" | tail -1)
+if [[ $full -eq 0 ]]; then
+  choice=( $list )
+else
+  title="Modules ${1^}"
+  text="Choisissez des modules qui seront installées pour tout le monde."
+  ltext=""
+  for l in $list
+  do
+    name=$(grep -A 1 "\[$l\]" "$ADDCONF" | tail -1 \
+          | cut -d' ' -f3- | sed 's/ / /g')
+    desc=$(grep -A 2 "\[$l\]" "$ADDCONF" | tail -1 \
+          | cut -d' ' -f3- | sed 's/ / /g')
+    line="$l $name : $desc"
+    id=$(grep -A 4 "\[$l\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+    if [[ "$1" == "firefox" ]]; then
+      path="$FX_PATH"
+    else
+      path="$TB_PATH"
+    fi
+    if [[ ! -d "${path}/${id}" ]]; then
+      if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+        ltext="$ltext $line off"
+      else
+        ltext="$ltext FALSE $line"
+      fi
+    fi
+  done
+  if [[ "x$ltext" != "x" ]]; then
+    if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+      w=805
+      h=300
+      x=$(( ($SCRWIDTH-${w})/2 ))
+      y=$(( ($SCRHEIGHT-${h})/2 ))
+      choice=( $(sudo -E -u "$SUDO_USER" \
+      kdialog \
+      --geometry ${w}x${h}+${x}+${y} \
+      --caption "$title" \
+      --separate-output \
+      --checklist "$text" \
+      $ltext \
+      2>&1) )
+    else
+      choice=( $(sudo -E -u "$SUDO_USER" \
+      zenity \
+      --title="$title" \
+      --text="$text" \
+      --width=800 \
+      --height=300 \
+      --list \
+      --checklist \
+      --column "check" \
+      --column "number" \
+      --column "addon" \
+      --hide-column=2 \
+      --separator=" " \
+      --print-column=2 \
+      --hide-header \
+      $ltext \
+      2>/dev/null) )
+    fi
+  fi
+fi
+if [[ "$1" == "firefox" ]]; then
+  addfa=( ${choice[@]} )
+else
+  addtb=( ${choice[@]} )
+fi
+}
+
+prepare ()
+{
+# préparation
+clear
+echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+echo -e ""
+echo -e "Préparation en cours…"
+echo -e ""
+echo -e "\\033[1;4;5;39m""Vous pouvez aller boire une bière à la santé \
+de nam1962 et de nany.""\\033[0;39m"
+
+for a in ${addpkg[@]}
+do
+  if \
+  [[ $(dpkg -l | sed 's/:[[:alnum:]].*/ /' | grep "$a " | grep "^ii ") == "" ]]
+  then
+    pkg+=( $a )
+  fi
+done
+
+for a in ${addppas[@]}
+do
+  pp=""
+  if [[ $(echo "$a" | grep "^remove(") ]]; then
+    rmp=$(echo "$a" | sed 's/^remove(\(.*\))/\1/;s/,/ /')
+    rmppa+=( $rmp )
+  elif [[ $(echo "$a" | grep "^\[.*\]") ]]; then
+    pver=$(echo "$a" | sed 's/^\[\([0-9][0-9].*\)\].*$/\1/;s/|/ /')
+    for v in $pver
+    do
+      if [[ "${v:2:1}" == "+" ]]; then
+        if [[ ${DISTROVER:0:2} -ge ${v:0:2} ]]; then
+          pp=$(echo "$a" | sed 's/^\[.*\]//')
+        fi
+      elif [[ "${DISTROVER}" == "${v}" ]]; then
+        pp=$(echo "$a" | sed 's/^\[.*\]//')
+      fi
+    done
+  else
+    pp=$a
+  fi
+  if [[ "x$pp" != "x" ]]; then
+    srclst=$(source "$pp")
+    if [[ ! -f "${PPADIR}${srclst}" ]]; then
+      ppas+=( $pp )
+    elif [[ ! $(grep ^deb "${PPADIR}${srclst}") ]]; then
+      ppas+=( $pp )
+    fi
+  fi
+done
+
+for a in ${addremove[@]}
+do
+  if \
+  [[ $(dpkg -l | sed 's/:[[:alnum:]].*/ /' | grep "$a " | grep "^ii ") != "" ]]
+  then
+    remove+=( $a )
+  fi
+done
+
+for a in ${addfa[@]}
+do
+  id=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+  if [[ ! -d "${FX_PATH}/${id}" ]]; then
+    fxadds+=( $a )
+  fi
+done
+
+for a in ${addtb[@]}
+do
+  id=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+  if [[ ! -d "${TB_PATH}/${id}" ]]; then
+    tbadds+=( $a )
+  fi
+done
+
+if [[ $tox -eq 0 ]]; then
+  echo "deb https://pkg.tox.chat/ nightly main" \
+  > /etc/apt/sources.list.d/tox.list
+  wget -qO - https://pkg.tox.chat/pubkey.gpg | apt-key add - > /dev/null
+  apt-get install -y apt-transport-https > /dev/null
+fi
+
+clear
+echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+}
+
+pkg_install ()
+{
+total=${#pkg[@]}
+if [[ $total -eq 0 ]]; then
+  return
+else
+  n=0
+  if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+    dbusRef=$(sudo -E -u "$SUDO_USER" \
+    kdialog \
+    --caption "Installation de" \
+    --geometry 400x75 \
+    --progressbar " " \
+    ${total})
+    for p in ${pkg[@]}
+    do
+      ((n++))
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef setLabelText "$p" > /dev/null
+      if [[ ! $(dpkg -l | grep "$p " | grep "^ii ") ]]; then
+        apt-get install -qqy "$p" > /dev/null 2>&1
+      fi
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value ${n} > /dev/null
+    done
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef close > /dev/null
+  else
+    (
+      for p in ${pkg[@]}
+      do
+        ((n++))
+        PC=$((${n} * 100 / ${total}))
+        echo "# $p"
+        if [[ ! $(dpkg -l | grep "$p " | grep "^ii ") ]]; then
+          apt-get install -qqy "$p" > /dev/null 2>&1
+        fi
+        if [[ $PC -eq 100 ]]; then
+          echo "99"
+          sleep 1
+          echo "$PC"
+        else
+          echo "$PC"
+        fi
+      done
+    ) |
+    sudo -E -u "$SUDO_USER" \
+    zenity \
+    --progress \
+    --title="Installation de" \
+    --text="" \
+    --width=400 \
+    --no-cancel \
+    --auto-close \
+    > /dev/null 2>&1
+  fi
+fi
+}
+
+add_rep ()
+{
+total=${#ppas[@]}
+if [[ $total -eq 0 ]]; then
+  return
+else
+  n=0
+  if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+    dbusRef=$(sudo -E -u "$SUDO_USER" \
+    kdialog \
+    --caption "Installation du ppa" \
+    --geometry 400x75 \
+    --progressbar " " \
+    $total)
+    for p in ${ppas[@]}
+    do
+      ((n++))
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef setLabelText "$p" > /dev/null
+      srclst=$(source "$p")
+      if [[ ! -f "${PPADIR}${srclst}" ]]; then
+        apt-add-repository -y "$p" > /dev/null 2>&1
+      fi
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value $n > /dev/null
+    done
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef close > /dev/null
+  else
+    (
+    for p in ${ppas[@]}
+      do
+        ((n++))
+        PC=$((${n} * 100 / ${total}))
+        srclst=$(source "$p")
+        echo "# $p"
+        if [[ ! $(grep ^deb "${PPADIR}${srclst}" > /dev/null 2>&1) ]]; then
+          apt-add-repository -y "$p" > /dev/null 2>&1
+        fi
+        if [[ $PC -eq 100 ]]; then
+          echo "99"
+          sleep 1
+          echo "$PC"
+        else
+          echo "$PC"
+        fi
+      done
+    ) |
+    sudo -E -u "$SUDO_USER" \
+    zenity \
+    --progress \
+    --title="Installation du ppa" \
+    --text="" \
+    --width=400 \
+    --no-cancel \
+    --auto-close \
+    > /dev/null 2>&1
+  fi
+fi
+}
+
+rm_rep ()
+{
+if [[ ${#rmppa[@]} -eq 0 ]]; then
+  return
+fi
+for p in ${rmppa[@]}
+do
+  srclst=$(source "$p")
+  add-apt-repository -y --remove "$p" #> /dev/null 2>&1
+  rm "${PPADIR}${srclst}" "${PPADIR}${srclst}.save" #> /dev/null 2>&1
+done
+}
+
+pkg_remove ()
+{
+total=${#remove[@]}
+if [[ $total -eq 0 ]]; then
+  return
+else
+  n=0
+  if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+    dbusRef=$(sudo -E -u "$SUDO_USER" \
+    kdialog \
+    --caption "Désinstallation de" \
+    --geometry 400x75 \
+    --progressbar " " \
+    ${total})
+    for p in ${remove[@]}
+    do
+      ((n++))
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef setLabelText "$p" > /dev/null
+      if [[ $(dpkg -l | grep "$p " | grep "^ii ") ]]; then
+        apt-get purge -qqy "$p" > /dev/null
+      fi
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value ${n} > /dev/null
+    done
+    qdbus $dbusRef close > /dev/null
+  else
+    (
+      for p in ${remove[@]}
+      do
+        ((n++))
+        PC=$((${n} * 100 / ${total}))
+        echo "# $p"
+        if [[ $(dpkg -l | grep "$p " | grep "^ii ") ]]; then
+          apt-get purge -qqy "$p" > /dev/null
+        fi
+        if [[ $PC -eq 100 ]]; then
+          echo "99"
+          sleep 1
+          echo "$PC"
+        else
+          echo "$PC"
+        fi
+      done
+    ) |
+    sudo -E -u "$SUDO_USER" \
+    zenity \
+    --progress \
+    --title="Désinstallation de" \
+    --text="" \
+    --width=400 \
+    --no-cancel \
+    --auto-close \
+    > /dev/null 2>&1
+  fi
+fi
+}
+
+syst_update ()
+{
+if [[ ${#ppas[@]} -eq 0 && $tox -eq 1 ]]; then
+  return
+fi
+if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+  dbusRef=$(sudo -E -u "$SUDO_USER" \
+  kdialog \
+  --caption "Mise à jour du cache" \
+  --geometry 400x75 \
+  --progressbar "Mise à jour du cache des paquets." \
+  0)
+  apt-get update > /dev/null
+  sudo -E -u "$SUDO_USER" qdbus $dbusRef close > /dev/null
+else
+  ( apt-get update ) \
+  | sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="Mise à jour du cache" \
+  --width=400 \
+  --text="Mise à jour du cache des paquets." \
+  --pulsate \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+syst_upgrade ()
+{
+if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+  dbusRef=$(sudo -E -u "$SUDO_USER" \
+  kdialog \
+  --caption "Mise à jour" \
+  --geometry 400x75 \
+  --progressbar "Mise à jour du cache des paquets." \
+  0)
+  apt-get update > /dev/null
+  sudo -E -u "$SUDO_USER" qdbus $dbusRef setLabelText "Mise à jour…" > /dev/null
+  apt-get dist-upgrade -qqy > /dev/null 2>&1
+  sudo -E -u "$SUDO_USER" qdbus $dbusRef close > /dev/null
+else
+  (
+  apt-get update > /dev/null
+  echo "# Mise à jour…"
+  apt-get dist-upgrade -qqy > /dev/null 2>&1
+  ) |
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="Mise à jour" \
+  --width=400 \
+  --text="Mise à jour du cache des paquets." \
+  --pulsate \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+is_tlp ()
+{
+if [[ $tlp -eq 0 ]]; then
+  tlp start > /dev/null
+  lshw | grep -i "bluetooth" > /dev/null
+  if [[ $? -ne 0 ]]; then
+    ttr='#DEVICES_TO_DISABLE_ON_STARTUP="bluetooth wifi wwan"'
+    rt='DEVICES_TO_DISABLE_ON_STARTUP="bluetooth"'
+    sed -i "s/$ttr/$rt/" /etc/default/tlp
+    update-rc.d -f bluetooth remove > /dev/null 2>&1
+  fi
+fi
+}
+
+is_gufw ()
+{
+if [[ $gufw -eq 0 ]]; then
+  ufw enable > /dev/null
+fi
+}
+
+install_addons ()
+{
+if [[ "$1" == "palemoon-bin" ]]; then
+  return
+fi
+if [[ "$1" == "firefox" ]]; then
+  addons=( ${fxadds[@]} )
+  path="$FX_PATH"
+  url="$FX_URL"
+else
+  addons=( ${tbadds[@]} )
+  path="$TB_PATH"
+  url="$TB_URL"
+fi
+total=${#addons[@]}
+if [[ $total -eq 0 ]]; then
+  return
+else
+  n=0
+  title="Modules ${1^}"
+  if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+    dbusRef=$(sudo -E -u "$SUDO_USER" \
+    kdialog \
+    --caption "$title" \
+    --geometry 400x75 \
+    --progressbar " " \
+    $((${total}*2)))
+    for a in ${addons[@]}
+    do
+      ((n++))
+      ao=$(grep -A 1 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+      aourl=$(grep -A 3 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+      xpi=$(echo $aourl | sed 's|.*/||')
+      uid=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+      label="Téléchargement de $ao…"
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef setLabelText "$label" > /dev/null
+      wget -q --directory-prefix=/tmp "${url}${aourl}"
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value ${n} > /dev/null
+      ((n++))
+      label="Installation de $ao."
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef setLabelText "$label" > /dev/null
+      if [[ ! -d "${path}/${uid}" ]]; then
+        unzip -q /tmp/$xpi -d "$path/$uid"
+        chown -R root:root "$path/$uid"
+        chmod -R a+rX "$path/$uid"
+      fi
+      rm /tmp/$xpi
+      sudo -E -u "$SUDO_USER" qdbus $dbusRef Set "" value ${n} > /dev/null
+      sleep 1
+    done
+    sudo -E -u "$SUDO_USER" qdbus $dbusRef close > /dev/null
+  else
+    (
+      for a in ${addons[@]}
+      do
+        ((n++))
+        PC=$((${n} * 50 / ${total}))
+        ao=$(grep -A 1 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+        aourl=$(grep -A 3 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+        xpi=$(echo $aourl | sed 's|.*/||')
+        uid=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+        label="Téléchargement de $ao…"
+        echo "# $label"
+        wget -q --directory-prefix=/tmp "${url}${aourl}"
+        echo "$PC"
+        ((n++))
+        PC=$((${n} * 50 / ${total}))
+        label="Installation de $ao."
+        echo "# $label"
+        if [[ ! -d "${path}/${uid}" ]]; then
+          unzip /tmp/$xpi -d "$path/$uid"
+          chown -R root:root "$path/$uid"
+          chmod -R a+rX "$path/$uid"
+        fi
+        rm /tmp/$xpi
+        if [[ $PC -eq 100 ]]; then
+          echo "99"
+          sleep 1
+          echo "$PC"
+        else
+          echo "$PC"
+        fi
+        sleep 1
+      done
+    ) |
+    sudo -E -u "$SUDO_USER" \
+    zenity \
+    --progress \
+    --title="$title" \
+    --text="" \
+    --width=400 \
+    --no-cancel \
+    --auto-close \
+    > /dev/null 2>&1
+  fi
+fi
+}
+
+syst_clean ()
+{
+if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+  dbusRef=$(sudo -E -u "$SUDO_USER" \
+  kdialog \
+  --caption "Nettoyage" \
+  --geometry 400x75 \
+  --progressbar "Nettoyage…" \
+  0)
+  if [[ -f "$HOSTS" && ! $(diff -q /etc/hosts.tmp /etc/hosts) ]]
+  then
+    /etc/cron.monthly/hosts > /dev/null 2>&1
+  fi
+  if [[ $mscorefonts -ne 0 ]]; then
+    apt-get purge -y ttf-mscorefonts-installer > /dev/null
+  fi
+  apt-get autoremove --purge -qqy > /dev/null 2>&1
+  if [[ $(dpkg -l | grep "^rc") ]]; then
+    dpkg -P $(dpkg -l | grep "^rc" | tr -s ' ' | cut -d' ' -f2) > /dev/null
+  fi
+  apt-get clean > /dev/null
+  sudo -E -u "$SUDO_USER" qdbus $dbusRef close > /dev/null
+else
+  (
+    apt-get autoremove --purge -qqy > /dev/null 2>&1
+    apt-get clean > /dev/null
+    if [[ $(dpkg -l | grep "^rc") ]]; then
+      dpkg -P $(dpkg -l | grep "^rc" | tr -s ' ' | cut -d' ' -f2)
+      > /dev/null 2>&1
+    fi
+    if [[ -f "$HOSTS" && ! $(diff -q /etc/hosts.tmp /etc/hosts) ]]; then
+      /etc/cron.monthly/hosts > /dev/null 2>&1
+    fi
+    if [[ $mscorefonts -ne 0 ]]; then
+      apt-get purge -y ttf-mscorefonts-installer > /dev/null
+    fi
+  ) |
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="Nettoyage" \
+  --width=400 \
+  --text="Nettoyage…" \
+  --pulsate \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+syst_restart ()
+{
+if [[ "x${flavour,,}" == "xkubuntu" ]]; then
+  sudo -E -u "$SUDO_USER" \
+  kdialog \
+  --caption "Redémarrage" \
+  --yesno "Souhaitez-vous redémarrer maintenant ?"
+else
+  text="Le script est maintenant terminé.\n"
+  text+="N’oubliez pas de relire le tuto de nam1962 pour effectuer quelques "
+  text+="éventuels peaufinages\nque ce script ne fait pas (C3(bluetooth), "
+  text+="C7, C8, D5, D6, E5 E14, E18, G3, G5, J3, J7…).\n"
+  text+="La prise en charge des langues sera "
+  text+="lancée à votre prochain démarrage.\n"
+  text+="\nSouhaitez-vous redémarrer maintenant ?"
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --question \
+  --title="Redémarrage" \
+  --text="$text" \
+  --no-wrap \
+  --ok-label="Oui" \
+  --cancel-label="Non" \
+  > /dev/null 2>&1
+fi
+if [[ $? -eq 0 ]]; then
+  case "${flavour,,}" in
+    ubuntu|edubuntu|ubuntu-kylin|ubuntu-gnome)
+      sudo -E -u "$SUDO_USER" gnome-session-quit --reboot &;;
+    kubuntu)
+      sudo -E -u "$SUDO_USER" qdbus org.kde.ksmserver /KSMServer logout 1 1 2 &
+      ;;
+    lubuntu)
+      lxsession-logout &
+      ;;
+    xubuntu|ubuntu-studio)
+      sudo -E -u "$SUDO_USER" xfce4-session-logout &
+      ;;
+    ubuntu-mate)
+      sudo -E -u "$SUDO_USER" mate-session-save --shutdown-dialog \
+      > /dev/null 2>&1
+      ;;
+    *)
+      shutdown -r +1 "Le système va redémarrer dans une minute." \
+      > /dev/null 2>&1
+      ;;
+  esac
+fi
+}
+
+syst_sound ()
+{
+if [[ $sounds -eq 1 ]]; then
+  return
+fi
+cat << 'EOF' > "$X11GTK"
+if [ -z "$GTK_MODULES" ] ; then
+  GTK_MODULES="canberra-gtk-module"
+else
+  GTK_MODULES="$GTK_MODULES:canberra-gtk-module"
+fi
+export GTK_MODULES
+EOF
+cp "$X11GTK" "$X11GTK3"
+case "${flavour,,}" in
+  xubuntu|ubuntu-studio|lubuntu)
+    sudo -E -u "$SUDO_USER" \
+    xfconf-query -c xsettings -np /Net/EnableEventSounds -t bool -s true
+    sudo -E -u "$SUDO_USER" \
+    xfconf-query -c xsettings -np /Net/EnableInputFeedbackSounds -t bool -s true
+    sudo -E -u "$SUDO_USER" \
+    xfconf-query -c xsettings -np /Net/SoundThemeName -t string -s ubuntu
+    ;;
+  kubuntu|ubuntu-mate)
+    ;;
+  *)
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.gnome.desktop.sound input-feedback-sounds true
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.gnome.desktop.sound theme-name 'ubuntu'
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.gnome.desktop.sound event-sounds true
+    ;;
+esac
+}
+
+is_clamav ()
+{
+return
+}
+
+is_teamviewer ()
+{
+return
+}
+
+render_fonts ()
+{
+return
+}
+
+clean_exit ()
+{
+exit $1
+}
+###############
