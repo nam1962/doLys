@@ -1,0 +1,73 @@
+#!/bin/bash
+# encoding utf8
+# nam1962-xubuntu-brutal.sh by nany
+# for french ubuntu and differents flavours
+#
+#  ----------------------------------------------------------------------------
+#  "THE BEER-WARE LICENSE" (Revision 42):
+#  <nany@forum.ubuntu-fr.org> wrote this file. As long as you retain this
+#  notice you can do whatever you want with this stuff. If we meet some day,
+#  and you think this stuff is worth it, you can buy me a beer in return. nany
+#  ----------------------------------------------------------------------------
+# 
+# comments and dialog texts in french so license in french too :þ
+#
+#  ----------------------------------------------------------------------------
+#  "LICENCE BEERWARE" (Révision 42) :
+#  <nany@forum.ubuntu-fr.org> a créé ce fichier. Tant que vous conservez cet
+#  avertissement, vous pouvez faire ce que vous voulez de ce truc. Si on se
+#  rencontre un jour et que vous pensez que ce truc vaut le coup, vous pouvez
+#  me payer une bière en retour. nany
+#  ----------------------------------------------------------------------------
+#
+
+## VARIABLES ##
+NAME="nam1962-xubuntu-brutal"
+if [[ -f /var/log/installer/media-info ]]; then
+  MEDIA_INFO=$(cut -d' ' -f1 /var/log/installer/media-info)
+else
+  MEDIA_INFO="nomedia"
+fi
+DISTROVER=$(lsb_release -sr)
+DATEVER=$(lsb_release -sr | sed 's/\./-/')
+DISTRODES=$(lsb_release -sd)
+DISTRODATE="20${DATEVER}-30"
+dpkg -l | grep "zenity " | grep "^ii " > /dev/null
+ZEN=$?
+dpkg -l | grep "kde-baseapps-bin" | grep "^ii " > /dev/null
+KDIAL=$?
+SCRWIDTH=\
+$(xdpyinfo  | grep dimensions | tr -s ' ' | cut -d' ' -f3 | cut -d'x' -f1)
+SCRHEIGHT=\
+$(xdpyinfo  | grep dimensions | tr -s ' ' | cut -d' ' -f3 | cut -d'x' -f2)
+FX_PATH="/usr/lib/firefox-addons/extensions"
+TB_PATH="/usr/lib/thunderbird-addons/extensions"
+KLEANER="/etc/cron.monthly/kleaner"
+dpkg -l | grep ttf-mscorefonts-installer | grep "^ii " > /dev/null
+MSCORE=$?
+mscorefonts=0
+U_DEFAULT="${FILESDIR}/Ubuntu-default.conf"
+EULA="${FILESDIR}/EULA-ttf-mscorefonts.txt"
+RO="/home/${SUDO_USER}/.RunOnce"
+AS="/home/${SUDO_USER}/.config/autostart"
+ROD="${AS}/RunOnce.desktop"
+SRC="/etc/apt/sources.list"
+PPADIR="/etc/apt/sources.list.d/"
+X11GTK="/etc/X11/Xsession.d/52libcanberra-gtk-module_add-to-gtk-modules"
+X11GTK3="/etc/X11/Xsession.d/52libcanberra-gtk3-module_add-to-gtk-modules"
+flavour=""
+dpkg -l | grep "gimp " | grep "^ii " > /dev/null
+gimp=$?
+gufw=1
+tlp=1
+dpkg -l | grep "gedit " | grep "^ii " > /dev/null
+ge=$?
+dpkg -l | grep "libreoffice" | grep "^ii " > /dev/null
+lo=$?
+dpkg -l | grep "leafpad " | grep "^ii " > /dev/null
+leaf=$?
+dpkg -l | grep "abiword " | grep "^ii " > /dev/null
+abi=$?
+dpkg -l | grep "gnumeric " | grep "^ii " > /dev/null
+gnum=$?
+###############
