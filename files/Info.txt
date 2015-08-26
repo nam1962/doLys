@@ -1,6 +1,0 @@
-<b>Bonjour,</b>
-
-  ce script permet d’automatiser sur une installation fraîche les installations qui sont proposées dans le tuto de nam1962
-  que vous pouvez consulter dans votre navigateur <a href="http://dolys.fr/forums/topic/tuto-mon-optimisation-personnalisation-xubuntu-et-autres-variantes/">à cette adresse</a>.
-  Si vous utilisez ce script sur une installation modifiée, il est possible que certains conflits rendent votre installation instable.
-  Il est préférable de prendre connaissance du tuto pour comprendre ce que ce script va faire.
