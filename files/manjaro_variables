@@ -1,0 +1,36 @@
+#!/bin/bash
+# encoding utf8
+# nam1962-manjaro-brutal.sh by nany
+# for french ubuntu and differents flavours
+#
+# ----------------------------------------------------------------------------
+#  "THE BEER-WARE LICENSE" (Revision 42):
+#  <nany@forum.ubuntu-fr.org> wrote this file. As long as you retain this
+#  notice you can do whatever you want with this stuff. If we meet some day,
+#  and you think this stuff is worth it, you can buy me a beer in return. nany
+# ----------------------------------------------------------------------------
+# 
+# comments and dialog texts in french so license in french too :þ
+#
+# ----------------------------------------------------------------------------
+#  "LICENCE BEERWARE" (Révision 42) :
+#  <nany@forum.ubuntu-fr.org> a créé ce fichier. Tant que vous conservez cet
+#  avertissement, vous pouvez faire ce que vous voulez de ce truc. Si on se
+#  rencontre un jour et que vous pensez que ce truc vaut le coup, vous pouvez
+#  me payer une bière en retour. nany
+# ----------------------------------------------------------------------------
+#
+
+## VARIABLES ##
+NAME="nam1962-manjaro-brutal"
+DISTROVER=$(lsb_release -sr)
+DISTRODES=$(lsb_release -sd)
+FX_PATH="/usr/lib/firefox/browser/extensions"
+PM_PATH="/usr/lib/palemoon/browser/extensions"
+TB_PATH="/usr/lib/thunderbird/extensions"
+CONFSYSCTL="/etc/sysctl.d/100-manjaro.conf"
+M_DEFAULT="${FILESDIR}/Manjaro-default.conf"
+GETTYD="/etc/systemd/system/getty@.service.d"
+CONFNUMTTY="$GETTYD/activate-numlock.conf"
+flavour="$XDG_CURRENT_DESKTOP"
+###############
