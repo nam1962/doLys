@@ -1,0 +1,998 @@
+#!/bin/bash
+# encoding utf8
+# nam1962-manjaro-brutal.sh by nany
+# for french ubuntu and differents flavours
+#
+# ----------------------------------------------------------------------------
+#  "THE BEER-WARE LICENSE" (Revision 42):
+#  <nany@forum.ubuntu-fr.org> wrote this file. As long as you retain this
+#  notice you can do whatever you want with this stuff. If we meet some day,
+#  and you think this stuff is worth it, you can buy me a beer in return. nany
+# ----------------------------------------------------------------------------
+#
+# comments and dialog texts in french so license in french too :þ
+#
+# ----------------------------------------------------------------------------
+#  "LICENCE BEERWARE" (Révision 42) :
+#  <nany@forum.ubuntu-fr.org> a créé ce fichier. Tant que vous conservez cet
+#  avertissement, vous pouvez faire ce que vous voulez de ce truc. Si on se
+#  rencontre un jour et que vous pensez que ce truc vaut le coup, vous pouvez
+#  me payer une bière en retour. nany
+# ----------------------------------------------------------------------------
+#
+
+## FUNCTIONS ##
+usage ()
+{
+echo -e ""
+echo -e ""
+echo -e "\\033[1;41m""Usage :""\\033[0;39m"" ""\\033[1;39m"\
+"sudo -E""\\033[0;39m"" $0 ""\\033[0;36m""[-F | --full | -h | --help]"
+echo -e "\\033[0;39m"
+echo -e "\tScript pour automatiser les installations du tuto de nam1962."
+echo -e ""
+echo -e "\\033[1;46m""Options :""\\033[0;39m"
+echo -e "\\033[0;36m""\t  -F  --full""\\033[0;39m"\
+"\tInstallation complète sans demande."
+echo -e ""
+echo -e "\\033[0;36m""\t  -h  --help""\\033[0;39m""\tAffichage de cette aide."
+echo -e ""
+echo -e ""
+}
+
+is_flavour_available ()
+{
+# Manjaro ou non
+case "${DISTRODES}" in
+  '"Manjaro Linux"')
+  ;;
+  *)
+    echo "Votre distribution ($DISTRODES) n’est pas une Manjaro."
+    echo "http://manjaro.github.io/download/."
+    exit 4
+  ;;
+esac
+# variante supportée ou non
+case ${flavour,,} in
+  kde|xfce|lxde|x-cinnamon|gnome)
+  ;;
+  mate|i3|lxqt)
+    echo "Votre variante (Manjaro-${flavour,,}) n’est pas"
+    echo "prise en charge par ce script."
+    exit 3
+  ;;
+  "")
+    echo "Votre installation semble avoir été effectuée"
+    echo "à partir d’une image Net-Edition. Le script"
+    echo "ne peut pas déterminer la variante."
+    exit 3
+  ;;
+  *)
+    echo "Votre installation ne semble pas avoir été"
+    echo "effectuée à partir d’une image officielle de"
+    echo "http://manjaro.github.io/download/."
+    exit 3
+  ;;
+esac
+}
+
+is_version_available ()
+{
+# version supportée ou non
+case "${DISTROVER}" in
+  0.8.13|0.8.13.1)
+  ;;
+  *)
+    echo "Votre version ($DISTROVER) n’est pas supportée par ce script."
+    echo "Veuillez procéder aux mises à jour complètes de votre système"
+    echo "avant de relancer le script."
+    exit 5
+  ;;
+esac
+}
+
+sudoers_nopasswd ()
+{
+# modification du sudoers pour éviter la demande de mot de passe
+# en cas de dépassement de temps pour pacman exécuté par yaourt
+INSTALLER="/etc/sudoers.d/10-installer"
+if [[ -f "$INSTALLER" ]]; then
+  SUDOER=$(cat "$INSTALLER")
+  echo "$SUDO_USER ALL=(ALL) NOPASSWD: ALL" >> "$INSTALLER"
+else
+  echo "$SUDO_USER ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+fi
+}
+
+clean_exit ()
+{
+if [[ -f "$INSTALLER" ]]; then
+  echo "$SUDOER" > "$INSTALLER"
+else
+  sed -i '$d' /etc/sudoers
+fi
+exit $1
+}
+
+install_dialog ()
+{
+# si nécessaire, installation pour l’affichage des boîtes de dialogue
+if [[ ! $(sudo -E -u "$SUDO_USER" yaourt -Q zenity) ]]; then
+  sudo -E -u "$SUDO_USER" yaourt -S --noconfirm zenity > /dev/null
+fi
+}
+
+infos ()
+{
+# Informations
+text="<b>Bonjour,</b>\n\n"
+text+="  ce script permet d’automatiser sur une installation fraîche "
+text+="les installations qui sont proposées dans le tuto de nam1962\n"
+text+="  que vous pouvez consulter dans votre navigateur "
+text+="<a href=\"http://dolys.fr/forums/topic/"
+text+="mon-installation-post-installation-manjaro/\">à cette adresse</a>."
+text+="\n  Si vous utilisez ce script sur une installation modifiée, il est "
+text+="possible que certains conflits rendent votre installation instable.\n"
+text+="  Il est préférable de prendre connaissance du tuto "
+text+="pour comprendre ce que ce script va faire."
+sudo -E -u "$SUDO_USER" \
+zenity \
+--info \
+--title="Informations" \
+--width=400 \
+--height=160 \
+--no-wrap \
+--text="$text" \
+--ok-label="Suivant" \
+> /dev/null 2>&1
+text="En cliquant sur Continuer vous confirmez "
+text+="avoir pris connaissance du tuto."
+sudo -E -u "$SUDO_USER" \
+zenity \
+--question \
+--title="Continuer ?" \
+--text="$text" \
+--no-wrap \
+--ok-label="Continuer" \
+--cancel-label="Abandonner" \
+> /dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+  clean_exit 2
+fi
+}
+
+warning ()
+{
+return
+}
+
+mseula ()
+{
+return
+}
+
+sources_list ()
+{
+return
+}
+
+swappiness ()
+{
+# réglage swap
+swap=$(cat /etc/fstab | grep swap | grep -v installation | cut -d' ' -f1)
+if [[ "x$swap" != "x" ]]; then
+  if [[ $(grep "swappiness =" "$CONFSYSCTL") ]] && \
+    [[ $(grep "vm.vfs_cache_pressure =" "$CONFSYSCTL") ]]; then
+    return
+  fi
+  (
+  echo "# vm.swappiness = 1"
+  if [[ ! $(grep "swappiness =" "$CONFSYSCTL") ]]; then
+    echo "vm.swappiness = 1" > "$CONFSYSCTL"
+  fi
+  echo "33"
+  sleep 1
+  echo "# vm.vfs_cache_pressure = 50"
+  if [[ ! $(grep "vm.vfs_cache_pressure =" "$CONFSYSCTL") ]]; then
+    echo "vm.vfs_cache_pressure = 50" >> "$CONFSYSCTL"
+  fi
+  echo "66"
+  sleep 1
+  echo "# sysctl -p $CONFSYSCTL"
+  sysctl -p "$CONFSYSCTL"
+  echo "99"
+  sleep 1
+  echo "100"
+  ) |
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="Optimisation de la swap" \
+  --width=400 \
+  --text="" \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+microcode ()
+{
+cpu=$(grep vendor_id /proc/cpuinfo | cut -d' ' -f2 | uniq)
+if [[  $cpu == "GenuineIntel" ]]; then
+  addpkg+=( intel-ucode )
+fi
+}
+
+etc_hosts ()
+{
+if [[ ! $(grep $HOSTNAME /etc/hosts) ]]; then
+  sed -i -e "s/^\(127.0.0.1\).*$/&\t${HOSTNAME}/" /etc/hosts > /dev/null
+  sed -i -e "s/^\(::1\).*$/&\t${HOSTNAME}/" /etc/hosts > /dev/null
+fi
+}
+
+sup_nany ()
+{
+if [[ ! -f /etc/hosts.tmp ]]; then
+  cp /etc/hosts /etc/hosts.tmp
+fi
+cat << 'EOF' > "$HOSTS"
+#!/bin/bash
+wget --directory-prefix=/tmp http://winhelp2002.mvps.org/hosts.txt || exit
+cp /etc/hosts.tmp /etc/hosts
+sed "1,25d" /tmp/hosts.txt >> /etc/hosts
+rm /tmp/hosts.txt
+exit 0
+EOF
+chmod +x "$HOSTS"
+}
+
+default_pkg ()
+{
+# paquets installés par défaut sans demande
+dp=$(grep -A 1 "^\[${flavour,,}\]$" "$M_DEFAULT" | tail -1)
+addpkg+=( $(sh -c "$dp") )
+}
+
+get_choice ()
+{
+# traitement full ou libre choix
+# full
+if [[ $full -eq 0 ]]; then
+  choice=( $(grep -A 2 "^\[${flavour,,}\]$" "$M_DEFAULT" | tail -1) )
+# libre choix (propositions différentes selon les variantes)
+else
+  clear
+  echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+  echo -e ""
+  echo -e "Analyse de votre système…"
+  list=( $(grep -A 3 "^\[${flavour,,}\]$" "$M_DEFAULT" | tail -1) )
+  text=""
+  for n in ${list[@]}
+  do
+    line=""
+    pac=$(grep -A 5 "^\[$n\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+    pac=$(echo "$pac" | sed 's/choice(//;s/,/ /;s/)//')
+    name=$(grep -A 1 "^\[$n\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+    name=$(echo "$name" | sed 's/ / /g')
+    desc=$(grep -A 2 "^\[$n\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+    desc=$(echo "$desc" | sed 's/ / /g')
+    for p in $pac
+    do
+      if [[ ! $(sudo -E -u "$SUDO_USER" yaourt -Q | grep "$p ") ]]; then
+        line="$n $name : $desc"
+        break
+      fi
+    done
+    if [[ "x$line" != "x" ]]; then
+      text="$text FALSE $line"
+    fi
+  done
+  clear
+  echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+  htext="Choisissez les logiciels dans la liste ci dessous."
+  if [[ "x$text" != "x" ]]; then
+    choice=( $(sudo -E -u "$SUDO_USER" \
+    zenity --title="Choix d’installation" \
+    --text="$htext" \
+    --width=800 \
+    --height=600 \
+    --list \
+    --checklist \
+    --column "check" \
+    --column "number" \
+    --column "software" \
+    --hide-column=2 \
+    --separator=" " \
+    --print-column=2 \
+    --hide-header \
+    $text \
+    2>/dev/null) )
+  else
+    choice=()
+  fi
+fi
+}
+
+choice_analyse ()
+{
+# traitement des choix
+for c in ${choice[@]}
+do
+  pac=$(grep -A 5 "^\[$c\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+  pac=$(echo "$pac" | sed 's/^\[.*\]//')
+  for p in $pac
+  do
+    if [[ $(echo "$p" | grep "^choice(") ]]; then
+      pacch=$(echo "$p" | sed 's/^choice(//;s/)//;s/,/ /')
+      cpt=0
+      for pcc in $pacch
+      do
+        if [[ $cpt -eq 0 ]]; then
+          ltext="TRUE $pcc"
+        else
+          ltext="$ltext FALSE $pcc"
+        fi
+        ((cpt++))
+      done
+      desc=$(grep -A 2 "^\[$c\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+      pc=$(sudo -E -u "$SUDO_USER" \
+      zenity \
+      --title="${desc^}" \
+      --text="Choisissez votre ${desc}." \
+      --width=400 \
+      --height=150 \
+      --list \
+      --radiolist \
+      --column "check" \
+      --column "deb" \
+      --separator=" " \
+      --hide-header \
+      $ltext \
+      2>/dev/null)
+      if [[ "x$pc" != "x" ]]; then
+        addpkg+=( $pc )
+        r=$(grep -A 2 "^\[$pc\]$" "$APPCONF" | tail -1 | cut -d' ' -f3-)
+        addremove+=( $r )
+      fi
+    else
+      addpkg+=( $p )
+    fi
+  done
+done
+
+# libreoffice
+if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q libreoffice-still) ]] && \
+  [[ $full -ne 0 ]]; then
+  title="Libreoffice"
+  text="Libreoffice n’a plus de secret pour vous ?\n"
+  text+="Souhaitez-vous installer la version fresh\n"
+  text+="pour avoir ses dernières mises à jour ?"
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --question \
+  --title="$title" \
+  --text="$text" \
+  --no-wrap \
+  --ok-label="Oui" \
+  --cancel-label="Non" \
+  > /dev/null 2>&1
+  if [[ $? -eq 0 ]]; then
+    addpkg+=( libreoffice-fresh )
+  fi
+fi
+
+# gedit
+if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q gedit) ]]; then
+  addpkg+=( gedit-plugins )
+fi
+
+# tlp
+if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q tlp) ]]; then
+  addpkg+=( tlp-rdw )
+fi
+
+for p in ${addpkg[@]}
+do
+  case $p in
+    libreoffice-fresh)
+      addremove+=( libreoffice-still )
+      ;;
+    numlockx)
+      if [[ ! -d "$GETTYD" ]]; then
+        mkdir "$GETTYD"
+      fi
+      if [[ ! -f "$CONFNUMTTY" ]]; then
+        nmtty="[Service]\n"
+        nmtty+="ExecStartPre=/bin/sh -c 'setleds +num < /dev/%I'"
+        echo -e "$nmtty" > "$CONFNUMTTY"
+      fi
+      case "${flavour,,}" in
+        kde)
+          addpkg=( ${addpkg[@]/numlockx/} )
+          sed -i 's/\(^Numlock=\).*/\1on/' /etc/sddm.conf
+          ;;
+        xfce|x-cinnamon|lxqt)
+          if [[ ! $(grep numlockx /etc/lightdm/lightdm.conf) ]]; then
+            t="greeter-setup-script="
+            s="/usr/bin/numlockx on"
+            sed -i "s|^#${t}$|${t}${s}|" /etc/lightdm/lightdm.conf
+          fi
+          ;;
+        lxde)
+          addpkg=( ${addpkg[@]/numlockx/} )
+          sed -i 's/^#.*\(numlock=\).*/\11/' /etc/lxdm/lxdm.conf
+          ;;
+        *)
+          ;;
+      esac
+      ;;
+    xscreensaver)
+      addremove+=( light-locker )
+      ;;
+    libcanberra|ubuntu-sounds)
+      sounds=0
+      ;;
+    ttf-ms-fonts)
+      if [[ ! $(sudo -E -u "$SUDO_USER" yaourt -Q "$p") ]]; then
+        text="Des polices Microsoft vont être installées. Ces polices viennent"
+        text+="d’un AUR.\nLe processus d’installation ne permet sans doute pas"
+        text+=", à l’instar d’Ubuntu,\nde présenter la licence à laquelle elle"
+        text+="sont liées.\nNous vous invitons donc à consulter cette licence"
+        text+="à l’adresse suivante :\n"
+        text+="<a href=\"https://www.microsoft.com/typography/fontpack/eula.htm"
+        text+="\">https://www.microsoft.com/typography/fontpack/eula.htm</a>."
+        sudo -E -u "$SUDO_USER" \
+        zenity \
+        --info \
+        --title="Licence Microsoft" \
+        --no-wrap \
+        --text="$text" \
+        > /dev/null 2>&1
+      fi
+      ;;
+  esac
+done
+}
+
+is_gimp ()
+{
+return
+}
+
+get_uninstall ()
+{
+return
+}
+
+get_addons ()
+{
+# extensions firefox ou thunderbird
+if [[ ! $(sudo -E -u "$SUDO_USER" yaourt -Q | grep "$1") ]]; then
+  return
+fi
+list=$(grep -A 1 "\[${1}\]" "$ADDCONF" | tail -1)
+if [[ $full -eq 0 ]]; then
+  choice=( $list )
+else
+  choice=()
+  title="Modules ${1^}"
+  text="Choisissez des modules qui seront installées pour tout le monde."
+  ltext=""
+  for l in $list
+  do
+    name=$(grep -A 1 "\[$l\]" "$ADDCONF" | tail -1 \
+          | cut -d' ' -f3- | sed 's/ / /g')
+    desc=$(grep -A 2 "\[$l\]" "$ADDCONF" | tail -1 \
+          | cut -d' ' -f3- | sed 's/ / /g')
+    line="$l $name : $desc"
+    id=$(grep -A 4 "\[$l\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+    if [[ "$1" == "firefox" ]]; then
+      path="$FX_PATH"
+    elif [[ "$1" == "thunderbird" ]]; then
+      path="$TB_PATH"
+    else
+      path="$PM_PATH"
+    fi
+    if [[ ! -d "${path}/${id}" ]]; then
+      ltext="$ltext FALSE $line"
+    fi
+  done
+  if [[ "x$ltext" != "x" ]]; then
+    choice=( $(sudo -E -u "$SUDO_USER" \
+    zenity \
+    --title="$title" \
+    --text="$text" \
+    --width=800 \
+    --height=300 \
+    --list \
+    --checklist \
+    --column "check" \
+    --column "number" \
+    --column "addon" \
+    --hide-column=2 \
+    --separator=" " \
+    --print-column=2 \
+    --hide-header \
+    $ltext \
+    2>/dev/null) )
+  fi
+fi
+if [[ "$1" == "thunderbird" ]]; then
+  addtb=( ${choice[@]} )
+elif [[ "$1" == "firefox" ]]; then
+  addfa=( ${choice[@]} )
+else
+  addpm=( ${choice[@]} )
+fi
+}
+
+prepare ()
+{
+# préparation
+clear
+echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+echo -e ""
+echo -e "Préparation en cours…"
+echo -e ""
+echo -e "\\033[1;4;5;39m""Vous pouvez aller boire une bière à la santé \
+de nam1962 et de nany.""\\033[0;39m"
+
+for a in ${addpkg[@]}
+do
+  if [[ ! $(sudo -E -u "$SUDO_USER" yaourt -Q | grep "$a ") ]]; then
+    pkg+=( $a )
+  fi
+done
+
+for a in ${addremove[@]}
+do
+  if \
+  [[ $(sudo -E -u "$SUDO_USER" yaourt -Q | grep "$a ") ]]
+  then
+    remove+=( $a )
+  fi
+done
+
+for a in ${addfa[@]}
+do
+  id=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+  if [[ ! -d "${FX_PATH}/${id}" ]]; then
+    fxadds+=( $a )
+  fi
+done
+
+for a in ${addpm[@]}
+do
+  id=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+  if [[ ! -d "${FX_PATH}/${id}" ]]; then
+    pmadds+=( $a )
+  fi
+done
+
+for a in ${addtb[@]}
+do
+  id=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+  if [[ ! -d "${TB_PATH}/${id}" ]]; then
+    tbadds+=( $a )
+  fi
+done
+
+clear
+echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+}
+
+pkg_install ()
+{
+total=${#pkg[@]}
+if [[ $total -eq 0 ]]; then
+  return
+else
+  n=0
+  (
+  for p in ${pkg[@]}
+  do
+    ((n++))
+    PC=$((${n} * 100 / ${total}))
+    echo "# $p"
+    if [[ $(echo "$p" | egrep "\-ubuntu") ]]; then
+      rp=$(echo "$p" | sed 's/-ubuntu//')
+      pacman -Rdd --noconfirm "$rp"
+    fi
+    if [[ ! $(sudo -E -u "$SUDO_USER" yaourt -Q "$p") ]]; then
+      sudo -E -u "$SUDO_USER" yaourt -S --noconfirm "$p" > /dev/null 2>&1
+    fi
+    if [[ $PC -eq 100 ]]; then
+      echo "99"
+      sleep 1
+      echo "$PC"
+    else
+      echo "$PC"
+    fi
+  done
+  ) |
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="Installation de" \
+  --text="" \
+  --width=400 \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+pkg_remove ()
+{
+total=${#remove[@]}
+if [[ $total -eq 0 ]]; then
+  return
+else
+  n=0
+  (
+  for p in ${remove[@]}
+  do
+    ((n++))
+    PC=$((${n} * 100 / ${total}))
+    echo "# $p"
+    if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q "$p") ]]; then
+      sudo -E -u "$SUDO_USER" yaourt -R --noconfirm "$p" > /dev/null 2>&1
+    fi
+    if [[ $PC -eq 100 ]]; then
+      echo "99"
+      sleep 1
+      echo "$PC"
+    else
+      echo "$PC"
+    fi
+  done
+  ) |
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="Désinstallation de" \
+  --text="" \
+  --width=400 \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+syst_upgrade ()
+{
+(
+pacman -Syyuu --noconfirm > /dev/null 2>&1
+sudo -E -u "$SUDO_USER" yaourt -Sau --noconfirm > /dev/null 2>&1
+) |
+sudo -E -u "$SUDO_USER" \
+zenity \
+--progress \
+--title="Mises à jour" \
+--width=400 \
+--text="Mises à jour. Veuillez patienter…" \
+--pulsate \
+--no-cancel \
+--auto-close \
+> /dev/null 2>&1
+}
+
+fr_language ()
+{
+# francisation
+clear
+echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+echo -e ""
+echo -e "Recherche de paquets linguistiques…"
+echo -e ""
+echo 'LANG="fr_FR.UTF-8"' > /etc/locale.conf
+pkg=()
+langlist="/var/lib/manjaro-system-settings/language_packages.list"
+paclang=( $(sed '/^#.*$/d;/^$/d;s/%/fr/' "$langlist") )
+for p in ${paclang[@]}
+do
+  pac=$(echo "$p" | cut -d':' -f1)
+  pfr=$(echo "$p" | cut -d':' -f2)
+  if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q | grep "$pac ") ]]; then
+    if [[ ! $(sudo -E -u "$SUDO_USER" yaourt -Q | grep "$pfr ") ]]; then
+      pkg+=( $pfr )
+    fi
+  fi
+done
+clear
+echo -e "\\033[1;39m""$NAME version $VERSION""\\033[0;39m"
+if [[ ${#pkg[@]} -gt 0 ]]; then
+  pkg_install
+fi
+}
+
+install_addons ()
+{
+if [[ "$1" == "firefox" ]]; then
+  addons=( ${fxadds[@]} )
+  path="$FX_PATH"
+  url="$FX_URL"
+elif [[ "$1" == "palemoon-bin" ]]; then
+  addons=( ${pmadds[@]} )
+  path="$PM_PATH"
+  url="$FX_URL"
+else
+  addons=( ${tbadds[@]} )
+  path="$TB_PATH"
+  url="$TB_URL"
+fi
+total=${#addons[@]}
+if [[ $total -eq 0 ]]; then
+ return
+else
+  n=0
+  title="Modules ${1^}"
+  (
+  for a in ${addons[@]}
+  do
+    ((n++))
+    PC=$((${n} * 50 / ${total}))
+    ao=$(grep -A 1 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+    aourl=$(grep -A 3 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+    xpi=$(echo $aourl | sed 's|.*/||')
+    uid=$(grep -A 4 "\[$a\]" "$ADDCONF" | tail -1 | cut -d' ' -f3-)
+    label="Téléchargement de $ao…"
+    echo "# $label"
+    wget -q --directory-prefix=/tmp "${url}${aourl}"; \
+    echo "$PC"
+    ((n++))
+    PC=$((${n} * 50 / ${total}))
+    label="Installation de $ao."
+    echo "# $label"
+    if [[ ! -d "${path}/${uid}" ]]; then
+      unzip /tmp/$xpi -d "$path/$uid"
+      chown -R root:root "$path/$uid"
+      chmod -R a+rX "$path/$uid"
+    fi
+    rm /tmp/$xpi
+    if [[ $PC -eq 100 ]]; then
+      echo "99"
+      sleep 1
+      echo "$PC"
+    else
+      echo "$PC"
+    fi
+    sleep 1
+  done
+  ) |
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="$title" \
+  --text="" \
+  --width=400 \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+syst_clean ()
+{
+(
+if [[ -f "$HOSTS" && ! $(diff -q /etc/hosts.tmp /etc/hosts) ]]; then
+  /etc/cron.monthly/hosts > /dev/null 2>&1
+fi
+sleep 1
+if [[ $(pacman -Qdtq) ]]; then
+  pacman -Qdtq | pacman --noconfirm -Rs -
+fi
+sleep 1
+pacman -Scc --noconfirm
+sleep 1
+) |
+sudo -E -u "$SUDO_USER" \
+zenity \
+--progress \
+--title="Nettoyage" \
+--width=400 \
+--text="Nettoyage…" \
+--pulsate \
+--no-cancel \
+--auto-close \
+> /dev/null 2>&1
+}
+
+syst_restart ()
+{
+text="Le script est maintenant terminé.\n"
+text+="N’oubliez pas de relire le tuto de nam1962 pour effectuer quelques "
+text+="éventuels peaufinages\nque ce script ne fait pas.\n"
+text+="\nSouhaitez-vous redémarrer maintenant ?"
+sudo -E -u "$SUDO_USER" \
+zenity \
+--question \
+--title="Redémarrage" \
+--text="$text" \
+--no-wrap \
+--ok-label="Oui" \
+--cancel-label="Non" \
+> /dev/null 2>&1
+if [[ $? -eq 0 ]]; then
+  case "${flavour,,}" in
+    gnome)
+      sudo -E -u "$SUDO_USER" gnome-session-quit --reboot &
+    ;;
+    x-cinnamon)
+     sudo -E -u "$SUDO_USER" cinnamon-session-quit --reboot &
+    ;;
+    kde)
+      sudo -E -u "$SUDO_USER" qdbus org.kde.ksmserver /KSMServer logout 1 1 2 &
+    ;;
+    lxde)
+      lxsession-logout &
+    ;;
+    xfce)
+      sudo -E -u "$SUDO_USER" xfce4-session-logout &
+    ;;
+    mate)
+      sudo -E -u "$SUDO_USER" mate-session-save --shutdown-dialog \
+      > /dev/null 2>&1
+    ;;
+    *)
+      shutdown -r +1 "Le système va redémarrer dans une minute." \
+      > /dev/null 2>&1
+    ;;
+  esac
+fi
+}
+
+syst_sound ()
+{
+if [[ $sounds -eq 1 ]]; then
+  return
+fi
+case "${flavour,,}" in
+  xfce)
+    sudo -E -u "$SUDO_USER" \
+    xfconf-query -c xsettings -np /Net/EnableEventSounds -t bool -s true
+    sudo -E -u "$SUDO_USER" \
+    xfconf-query -c xsettings -np /Net/EnableInputFeedbackSounds -t bool -s true
+    sudo -E -u "$SUDO_USER" \
+    xfconf-query -c xsettings -np /Net/SoundThemeName -t string -s ubuntu
+  ;;
+  x-cinnamon)
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.cinnamon.desktop.sound input-feedback-sounds true
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.cinnamon.desktop.sound theme-name 'ubuntu'
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.cinnamon.desktop.sound event-sounds true
+  ;;
+  *)
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.gnome.desktop.sound input-feedback-sounds true
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.gnome.desktop.sound theme-name 'ubuntu'
+    sudo -E -u "$SUDO_USER" \
+    gsettings set org.gnome.desktop.sound event-sounds true
+  ;;
+esac
+}
+
+is_clamav ()
+{
+if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q clamav) ]]; then
+  (
+    systemctl is-enabled clamd > /dev/null
+    if [[ $? -ne 0 ]]; then
+      systemctl enable clamd --now > /dev/null 2>&1
+    fi
+    if [[ ! -f /var/lib/clamav/clamd.sock ]]; then
+      touch /var/lib/clamav/clamd.sock > /dev/null 2>&1
+      chown clamav:clamav /var/lib/clamav/clamd.sock > /dev/null 2>&1
+    fi
+    freshclam > /dev/null 2>&1
+    systemctl is-enabled freshclamd > /dev/null
+    if [[ $? -ne 0 ]]; then
+      systemctl enable freshclamd --now > /dev/null 2>&1
+    fi
+  ) |
+  sudo -E -u "$SUDO_USER" \
+  zenity \
+  --progress \
+  --title="Clamav" \
+  --width=400 \
+  --text="Parmétrage de clamav…" \
+  --pulsate \
+  --no-cancel \
+  --auto-close \
+  > /dev/null 2>&1
+fi
+}
+
+is_tlp ()
+{
+if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q tlp) ]]; then
+  systemctl is-enabled tlp > /dev/null
+  if [[ $? -ne 0 ]]; then
+    systemctl enable tlp --now > /dev/null 2>&1
+  fi
+  systemctl is-enabled tlp-sleep > /dev/null
+  if [[ $? -ne 0 ]]; then
+    systemctl enable tlp-sleep > /dev/null 2>&1
+  fi
+  tlp start > /dev/null 2>&1
+fi
+}
+
+is_gufw ()
+{
+if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q gufw) ]]; then
+  systemctl is-enabled ufw > /dev/null
+  if [[ $? -ne 0 ]]; then
+    systemctl enable ufw --now > /dev/null 2>&1
+  fi
+  ufw enable > /dev/null 2>&1
+fi
+}
+
+is_teamviewer ()
+{
+if [[ $(sudo -E -u "$SUDO_USER" yaourt -Q teamviewer) ]]; then
+  systemctl is-enabled teamviewerd > /dev/null
+  if [[ $? -ne 0 ]]; then
+    systemctl enable teamviewerd --now > /dev/null 2>&1
+  fi
+fi
+}
+
+render_fonts ()
+{
+cat << 'EOF' > /etc/fonts/local.conf
+<match target="font">
+  <edit name="autohint" mode="assign">
+    <bool>true</bool>
+  </edit>
+  <edit name="hinting" mode="assign">
+    <bool>true</bool>
+  </edit>
+  <edit mode="assign" name="hintstyle">
+    <const>hintslight</const>
+  </edit>
+  <edit mode="assign" name="lcdfilter">
+   <const>lcddefault</const>
+ </edit>
+</match>
+EOF
+
+if [[ -f /home/$SUDO_USER/.Xresources ]]; then
+  sudo -E -u "$SUDO_USER" \
+  cp /home/$SUDO_USER/.Xresources /home/$SUDO_USER/.Xresources.bak
+fi
+
+cat << 'EOF' > /home/$SUDO_USER/.Xresources
+Xft.dpi: 96
+Xft.antialias: true
+Xft.hinting: true
+Xft.rgba: rgb
+Xft.autohint: false
+Xft.hintstyle: hintslight
+Xft.lcdfilter: lcddefault
+EOF
+
+sudo -E -u "$SUDO_USER" xrdb -merge /home/$SUDO_USER/.Xresources
+}
+
+add_rep ()
+{
+return
+}
+
+syst_update ()
+{
+return
+}
+
+rm_rep ()
+{
+return
+}
+###############

@@ -1,0 +1,44 @@
+#!/bin/bash
+# encoding utf8
+# nam1962-brutal.sh by nany
+# for french Ubuntu or Manjaro flavours
+#
+#  ----------------------------------------------------------------------------
+#  "THE BEER-WARE LICENSE" (Revision 42):
+#  <nany@forum.ubuntu-fr.org> wrote this file. As long as you retain this
+#  notice you can do whatever you want with this stuff. If we meet some day,
+#  and you think this stuff is worth it, you can buy me a beer in return. nany
+#  ----------------------------------------------------------------------------
+# 
+# comments and dialog texts in french so license in french too :þ
+#
+#  ----------------------------------------------------------------------------
+#  "LICENCE BEERWARE" (Révision 42) :
+#  <nany@forum.ubuntu-fr.org> a créé ce fichier. Tant que vous conservez cet
+#  avertissement, vous pouvez faire ce que vous voulez de ce truc. Si on se
+#  rencontre un jour et que vous pensez que ce truc vaut le coup, vous pouvez
+#  me payer une bière en retour. nany
+#  ----------------------------------------------------------------------------
+#
+
+## FUNCTIONS ##
+is_help ()
+{
+# si option -h ou --help, on affiche l’aide et on sort
+if [[ $help -eq 0 ]]; then
+  usage
+  exit 0
+fi
+}
+
+is_sudo ()
+{
+# si sudo est omis ou s’il est lancé sans -E, on affiche l’aide et on sort
+if [[ $USER != "root" ]]; then
+  usage
+  exit 2
+elif [[ "x$DBUS_SESSION_BUS_ADDRESS" == "x" ]]; then
+  usage
+  exit 2
+fi
+}

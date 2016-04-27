@@ -1,0 +1,53 @@
+#!/bin/bash
+# encoding utf8
+# nam1962-brutal by nany
+# for french Ubuntu or Manjaro flavours
+#
+#  ----------------------------------------------------------------------------
+#  "THE BEER-WARE LICENSE" (Revision 42):
+#  <nany@forum.ubuntu-fr.org> wrote this file. As long as you retain this
+#  notice you can do whatever you want with this stuff. If we meet some day,
+#  and you think this stuff is worth it, you can buy me a beer in return. nany
+#  ----------------------------------------------------------------------------
+# 
+# comments and dialog texts in french so license in french too :þ
+#
+#  ----------------------------------------------------------------------------
+#  "LICENCE BEERWARE" (Révision 42) :
+#  <nany@forum.ubuntu-fr.org> a créé ce fichier. Tant que vous conservez cet
+#  avertissement, vous pouvez faire ce que vous voulez de ce truc. Si on se
+#  rencontre un jour et que vous pensez que ce truc vaut le coup, vous pouvez
+#  me payer une bière en retour. nany
+#  ----------------------------------------------------------------------------
+#
+
+## VARIABLES ##
+VERSION="2.0"
+help=1
+full=1
+fxadds=()
+addfa=()
+pmadds=()
+addpm=()
+tbadds=()
+addtb=()
+FILESDIR=$(dirname $0)/files
+APPCONF="${FILESDIR}/Applications.conf"
+ADDCONF="${FILESDIR}/Addons.conf"
+FX_URL="https://addons.mozilla.org/firefox/downloads"
+TB_URL="https://addons.mozilla.org/thunderbird/downloads"
+HOSTS="/etc/cron.monthly/hosts"
+prevuninst=()
+pkg=()
+addpkg=()
+tox=1
+ppas=()
+addppas=()
+remove=()
+addremove=()
+rmppa=()
+ppalo=1
+sounds=1
+xtm=1
+ku=1
+###############
